@@ -10,6 +10,7 @@ import atexit
 import tkinter.ttk as ttk
 from ttkthemes import ThemedTk
 from moviepy.editor import VideoFileClip, AudioFileClip
+#from datetime import datetime  ## trying to add the estimate download time function https://stackoverflow.com/questions/58256277/python-pytube-calculate-download-speed-and-elapsed-time
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -24,12 +25,12 @@ def download_highest_resolution(url,output_path):
 
 # Function to download the highest quality video from YouTube
 def download_highres_video(url):
-    print("Downloading sound track\r",end="")
+    print("Downloading video\r",end="")
     yt = YouTube(url)
     stream = yt.streams.filter(adaptive=True).filter(mime_type='video/webm').first()
     yt.register_on_progress_callback(update_progress)
     stream.download(filename='video.webm')
-    print("Sound track downloaded")
+    print("Video track downloaded")
 
 # Function to download the highest quality audio from YouTube
 def download_highres_audio(url):
@@ -247,7 +248,9 @@ def update_progress(stream, chunk, bytes_remaining):
     if progress >= 100 and not(DisableNormalFinishMsg):
         messagebox.showinfo("Download Complete", "Downloaded successfully!")
     progress_bar["value"] = progress
-    text=str("["+str(round(bytes_downloaded/1048576,2))+"/"+str(round(total_size/1048576,2))+" MB]")
+    bytes_downloaded_MB = round (bytes_downloaded/1024/1024,2)
+    total_size_MB = round (total_size/1024/1024,2)
+    text=f"[{bytes_downloaded_MB}/{total_size_MB} MB]"
     progress_byte.configure(text=text)
     window.update_idletasks()                
     
