@@ -14,7 +14,7 @@ call %VENV_DIR%\Scripts\activate.bat
 
 echo Installing required packages...
 pip install -r %REQUIREMENTS%
-
+cls
 echo Running %MAIN_SCRIPT%...
 python %MAIN_SCRIPT%
 

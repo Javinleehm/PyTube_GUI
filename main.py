@@ -27,14 +27,14 @@ def download_highres_video(url):
     yt = YouTube(url)
     stream = yt.streams.filter(adaptive=True).filter(mime_type='video/webm').first()
     yt.register_on_progress_callback(update_progress)
-    stream.download(filename='video.webm')
+    stream.download(filename='video.part')
 
 # Function to download the highest quality audio from YouTube
 def download_highres_audio(url):
     yt = YouTube(url)
     stream = yt.streams.get_audio_only()
     yt.register_on_progress_callback(update_progress)
-    stream.download(filename='audio.mp4')
+    stream.download(filename='audio.part')
 
 # Function to merge the downloaded video and audio
 def merge_video_audio(video_file, audio_file, output_file):
@@ -52,14 +52,14 @@ def download_highest_resolution_thread(video_url, output_path):
     download_highres_video(video_url)
     download_highres_audio(video_url)
 
-    video_file = "video.webm"  # Make sure the filename matches the one used in download_highres_video()
-    audio_file = "audio.mp4"  # Make sure the filename matches the one used in download_highres_audio()
-    output_file = os.path.join(output_path,"merged_video.mp4")
+    video_file = "video.part"  # Make sure the filename matches the one used in download_highres_video()
+    audio_file = "audio.part"  # Make sure the filename matches the one used in download_highres_audio()
+    output_file = os.path.join(output_path,YouTube(video_url).streams.first().title.replace(":","")+".mp4")
 
     merge_video_audio(video_file, audio_file, output_file)
-    os.remove("audio.mp4")
-    os.remove("video.webm")
-    messagebox.showinfo("Download Complete", "Downloaded successfully!")
+    os.remove("audio.part")
+    os.remove("video.part")
+    messagebox.showinfo("Download Complete", "HD video downloaded successfully!")
 
 
 
@@ -128,12 +128,15 @@ atexit.register(kill_threads)
 def on_download():
     global DisableNormalFinishMsg
     DisableNormalFinishMsg = format_var.get()== 3 # or is_playlist.get() == 1
-        
+    print("Starting download...")
     reset_progress()
     url = url_entry.get()
     output_path = path_entry.get()
+    if output_path=="":
+        messagebox.showwarning("Error","Please enter or select an output path.")
+        return False
     if not(os.path.isdir(output_path)):
-        messagebox.showwarning("Error","Such directory does not exist.")
+        messagebox.showwarning("Error","The selected output path is invalid.")
         return False
     config["path"] = output_path
     if is_playlist.get() == 1:
@@ -224,6 +227,8 @@ def on_download():
                     print(e)
                     return False
                 # messagebox.showinfo("Download Complete", "Audio downloaded successfully!")
+    reset_progress()
+
     with open("config.json", "r+") as f:
         json.dump(config,f)
 
@@ -238,6 +243,8 @@ def update_progress(stream, chunk, bytes_remaining):
     if progress >= 100 and not(DisableNormalFinishMsg):
         messagebox.showinfo("Download Complete", "Downloaded successfully!")
     progress_bar["value"] = progress
+    text=str("["+str(round(bytes_downloaded/1048576,2))+"/"+str(round(total_size/1048576,2))+" MB]")
+    progress_byte.configure(text=text)
     window.update_idletasks()                
     
 
@@ -271,36 +278,37 @@ window_height = int(window.winfo_screenheight() / 2)  # Window height is a quart
 window.geometry(f"{window_width}x{window_height}")
 
 # URL Entry
-url_label = ttk.Label(window, text="URL:")
+url_label = tk.Label(window, text="URL:")
 url_label.pack()
 url_entry = ttk.Entry(window, textvariable=10, width=80)
 url_entry.pack(ipady=10)
 
 # Playlist or Single Song Selection
-
+is_playlist_radio_label=tk.Label(window, text="Link Type:")
+is_playlist_radio_label.pack()
 is_playlist_radio_frame = ttk.Frame(window)
 is_playlist_radio_frame.pack()
 is_playlist = tk.IntVar(value=0)  # Initialize with value 0
 playlist_radio = ttk.Radiobutton(is_playlist_radio_frame, text="Playlist", variable=is_playlist, value=1)
 playlist_radio.grid(row=0, column=0)
-single_radio = ttk.Radiobutton(is_playlist_radio_frame, text="Single Song (Use , to split between multiple links)", variable=is_playlist, value=0)
+single_radio = ttk.Radiobutton(is_playlist_radio_frame, text="Single Video (Use , to seperate multiple links)", variable=is_playlist, value=0)
 single_radio.grid(row=0, column=1)
 
 # Format Selection
-
-
+format_label=tk.Label(window, text="Format:")
+format_label.pack()
 format_radio_frame = ttk.Frame(window)
 format_radio_frame.pack()
 format_var = tk.IntVar(value=1)
 mp3_radio = ttk.Radiobutton(format_radio_frame, text="MP3", variable=format_var, value=1)
 mp3_radio.grid(row=0, column=0)
 mp4_radio = ttk.Radiobutton(format_radio_frame, text="MP4(Maximum 720p)", variable=format_var, value=2)
-mp4_radio.grid(row=0, column=1)
+mp4_radio.grid(row=1, column=0)
 mp4_highres_radio = ttk.Radiobutton(format_radio_frame, text="Highest Resolution MP4 (Requires local processing)", variable=format_var, value=3)
-mp4_highres_radio.grid(row=0, column=2)
+mp4_highres_radio.grid(row=2, column=0)
 
 # Output Path Entry
-path_label = ttk.Label(window, text="Output Path:")
+path_label = tk.Label(window, text="Output Path:")
 path_label.pack()
 path_entry = ttk.Entry(window, width=50)
 path_entry.insert(0, config["path"]) 
@@ -312,10 +320,14 @@ path_button.pack()
 download_button = ttk.Button(window, text="Download", command=on_download)
 download_button.pack()
 
+# Progress bar
+progress_bar_label=tk.Label(window, text="Download progress:")
+progress_bar_label.pack()
 progress_bar = Progressbar(window, orient=tk.HORIZONTAL, length=300, mode='determinate')
 progress_bar.pack()
-
-disclaimer_label = ttk.Label(window, text="Created by Javin :D\n\n\n\n\nDisclaimer: \nThis YouTube downloader is provided for educational purposes only. \nThe usage of this tool is at your own risk. \nI do not endorse or promote any unauthorized downloading or distribution of copyrighted content. \nPlease ensure that you comply with the applicable laws and the terms of service of YouTube and other content platforms when using this downloader. \nI am not responsible for any misuse or illegal activity performed with this tool. \nUse it responsibly and respect the rights of content creators.")
+progress_byte = tk.Label(window, text="")
+progress_byte.pack()
+disclaimer_label = tk.Label(window, text="\nCreated by Javin :D \nContributor: Victorch :)\n\n\n\n\nDisclaimer: \nThis YouTube downloader is provided for educational purposes only. \nThe usage of this tool is at your own risk. \nWe do not endorse or promote any unauthorized downloading or distribution of copyrighted content. \nPlease ensure that you comply with the applicable laws and the terms of service of YouTube and other content platforms when using this downloader. \nWe are not responsible for any misuse or illegal activity performed with this tool. \nUse it responsibly and respect the rights of content creators.")
 disclaimer_label.pack()
 
 
