@@ -10,7 +10,7 @@ import atexit
 import tkinter.ttk as ttk
 from ttkthemes import ThemedTk
 from moviepy.editor import VideoFileClip, AudioFileClip
-#from datetime import datetime  ## trying to add the estimate download time function https://stackoverflow.com/questions/58256277/python-pytube-calculate-download-speed-and-elapsed-time
+from datetime import datetime  ## trying to add the estimate download time function https://stackoverflow.com/questions/58256277/python-pytube-calculate-download-speed-and-elapsed-time
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -55,7 +55,7 @@ def download_highest_resolution_thread(video_url, output_path):
 
     download_highres_video(video_url)
     download_highres_audio(video_url)
-    progress_byte.configure(text="Converting file")
+    progress_text.configure(text="Converting file")
 
     video_file = "video.webm"  # Make sure the filename matches the one used in download_highres_video()
     audio_file = "audio.mp4"  # Make sure the filename matches the one used in download_highres_audio()
@@ -232,14 +232,16 @@ def on_download():
                     print(e)
                     return False
                 # messagebox.showinfo("Download Complete", "Audio downloaded successfully!")
-    progress_byte.configure(text="")
+    progress_text.configure(text="")
 
     with open("config.json", "r+") as f:
         json.dump(config,f)
 
 def reset_progress():
+    global start_time
     progress_bar["value"] = 0
     window.update_idletasks()
+    start_time = datetime.now()
 
 def update_progress(stream, chunk, bytes_remaining):
     total_size = stream.filesize
@@ -248,12 +250,33 @@ def update_progress(stream, chunk, bytes_remaining):
     if progress >= 100 and not(DisableNormalFinishMsg):
         messagebox.showinfo("Download Complete", "Downloaded successfully!")
     progress_bar["value"] = progress
-    bytes_downloaded_MB = round (bytes_downloaded/1024/1024,2)
-    total_size_MB = round (total_size/1024/1024,2)
-    text=f"[{bytes_downloaded_MB}/{total_size_MB} MB]"
-    progress_byte.configure(text=text)
+    text=update_progress_display(total_size,bytes_downloaded,bytes_remaining)
+    progress_text.configure(text=text)
     window.update_idletasks()                
     
+def update_progress_display(size,received,remaining):
+    size_MB = round (size/1024/1024,2)
+    received_MB = round (received/1024/1024,2)
+    remaining_MB = round (remaining/1024/1024,2)
+    elapsed_time = (datetime.now() - start_time).total_seconds() 
+    speed = round (received_MB / elapsed_time , 2)
+    ETA = round (remaining_MB / speed , 2) if speed !=0 else 1
+    #ETA = f"{ETA}s" if ETA < 60 else f"{ETA // 60}m {f'{int(ETA % 60)}s' if ETA % 60 != 0 else ''}"
+    days, hours, minutes, seconds = convert_seconds(ETA)
+    ETA_string = f"{str(days)+' d' if days!=0 else ''} {str(hours)+' h' if hours!=0  else ('0 h' if days!=0 else '')} {str(minutes)+' m' if minutes!=0  else ('0 m' if hours!=0 else '')} {str(seconds)+' s' if seconds!=0  else ''}"
+    complete_percentage = received_MB / size_MB * 100
+    #display=f"[Recieved: {received_MB}/{size_MB} MB ({speed})  ETA: {ETA}s]"
+    display=f"Recieved: {received_MB}/{size_MB} MB [{complete_percentage}% | {speed} MB/s | ETA: {ETA_string}"
+    return display
+
+def convert_seconds(seconds):
+    days = seconds // (24 * 3600)
+    seconds %= 24 * 3600
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return days, hours, minutes, seconds
 
 
 def select_path():
@@ -332,8 +355,8 @@ progress_bar_label=ttk.Label(window, text="Download progress:")
 progress_bar_label.pack()
 progress_bar = Progressbar(window, orient=tk.HORIZONTAL, length=300, mode='determinate')
 progress_bar.pack()
-progress_byte = ttk.Label(window, text="")
-progress_byte.pack()
+progress_text = ttk.Label(window, text="")
+progress_text.pack()
 disclaimer_label = ttk.Label(window, text="\nCreated by Javin :D \nContributor: Victorch :)\n\n\n\n\nDisclaimer: \nThis YouTube downloader is provided for educational purposes only. \nThe usage of this tool is at your own risk. \nWe do not endorse or promote any unauthorized downloading or distribution of copyrighted content. \nPlease ensure that you comply with the applicable laws and the terms of service of YouTube and other content platforms when using this downloader. \nWe are not responsible for any misuse or illegal activity performed with this tool. \nUse it responsibly and respect the rights of content creators.")
 disclaimer_label.pack()
 
