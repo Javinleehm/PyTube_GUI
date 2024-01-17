@@ -10,7 +10,7 @@ import atexit
 import tkinter.ttk as ttk
 from ttkthemes import ThemedTk
 from moviepy.editor import VideoFileClip, AudioFileClip
-from datetime import datetime  ## trying to add the estimate download time function https://stackoverflow.com/questions/58256277/python-pytube-calculate-download-speed-and-elapsed-time
+from datetime import datetime  ## trying to add the estimate download time function https://stackoverflow.com/questions/58256277/python-pytube-calculate-download-speed-and-elapsed-time ## added
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -65,7 +65,6 @@ def download_highest_resolution_thread(video_url, output_path):
     os.remove("audio.mp4")
     os.remove("video.webm")
     messagebox.showinfo("Download Complete", "HD video downloaded successfully!")
-
 
 
 
@@ -129,27 +128,34 @@ def kill_threads():
 
 atexit.register(kill_threads)
 
+def tweak_output_path(path,url):
+    author = YouTube(url).author
+    new_path = path+"\\"+author.replace(":","")
+    if not os.path.exists(new_path):
+        os.makedirs(new_path)
+    return new_path
 
 def on_download():
-    global DisableNormalFinishMsg
-    DisableNormalFinishMsg = format_var.get()== 3 # or is_playlist.get() == 1
+    global DisableNormalFinishMsg, total, count
+    DisableNormalFinishMsg = format_var.get()== 3  or is_playlist.get() == 1
     print("Starting download...")
     reset_progress()
     url = url_entry.get()
     output_path = path_entry.get()
-    if output_path=="":
-        messagebox.showwarning("Error","Please enter or select an output path.")
-        return False
+    author_folder = folder_check_box.get() == 1
     if not(os.path.isdir(output_path)):
-        messagebox.showwarning("Error","The selected output path is invalid.")
+        messagebox.showwarning("Error","Such dictory does not exist.")
         return False
     config["path"] = output_path
     if is_playlist.get() == 1:
         if format_var.get() == 2:
             playlist = Playlist(url)
+            total=len(playlist.videos)
             for video in playlist.videos:
+                count+=1
                 try:
-                    download_video(video.watch_url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,video.watch_url)
+                    download_video(video.watch_url, new_path)
                 except Exception as e:
                     print(e)
                     messagebox.showwarning("Error","Error while downloading")
@@ -158,9 +164,12 @@ def on_download():
             # messagebox.showinfo("Download Complete", "Video downloaded successfully!")
         elif format_var.get() == 1:
             playlist = Playlist(url)
+            total=len(playlist.videos)
             for video in playlist.videos:
+                count+=1
                 try:
-                    download_audio(video.watch_url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,video.watch_url)
+                    download_audio(video.watch_url, new_path)
                 except Exception as e:
                     print(e)
                     messagebox.showwarning("Error","Error while downloading")
@@ -168,9 +177,12 @@ def on_download():
             # messagebox.showinfo("Download Complete", "Video downloaded successfully!")
         elif format_var.get() == 3:
             playlist = Playlist(url)
+            total=len(playlist.videos)
             for video in playlist.videos:
+                count+=1
                 try:
-                    download_highest_resolution(video.watch_url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,video.watch_url)
+                    download_highest_resolution(video.watch_url, new_path)
                 except Exception as e:
                     print(e)
                     messagebox.showwarning("Error","Error while downloading")
@@ -181,10 +193,13 @@ def on_download():
     else:
         if "," in url:
             vidlist = re.split(r",\s",url)
+            total=len(vidlist)
             for video in vidlist:
+                count+=1
                 if format_var.get() == 2:
                     try:
-                        download_video(video, output_path)
+                        new_path = output_path if not author_folder else tweak_output_path(output_path,video)
+                        download_video(video, new_path)
                     except Exception as e:
                         print(e)
                         messagebox.showwarning("Error","Error while downloading")
@@ -192,14 +207,16 @@ def on_download():
                     
                 elif format_var.get() == 1:
                     try:
-                        download_audio(video, output_path)
+                        new_path = output_path if not author_folder else tweak_output_path(output_path,video)
+                        download_audio(video, new_path)
                     except Exception as e:
                         print(e)
                         messagebox.showwarning("Error","Error while downloading")
                         return False
                 elif format_var.get() == 3:
                     try:
-                        download_highest_resolution(video, output_path)
+                        new_path = output_path if not author_folder else tweak_output_path(output_path,video)
+                        download_highest_resolution(video, new_path)
                     except Exception as e:
                         print(e)
                         messagebox.showwarning("Error","Error while downloading")
@@ -212,38 +229,45 @@ def on_download():
                 # else:
                 #     messagebox.showinfo("Download Complete", "Audio downloaded successfully!")
         else:
+            total=1
             if format_var.get() == 2:
                 try:
-                    download_video(url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,url)
+                    download_video(url, new_path)
                 except Exception as e:
                     print(e)
                     return False
                 # messagebox.showinfo("Download Complete", "Video downloaded successfully!")
             elif format_var.get() ==1:
                 try:
-                    download_audio(url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,url)
+                    download_audio(url, new_path)
                 except Exception as e:
                     print(e)
                     return False
             elif format_var.get() == 3:
                 try:
-                    download_highest_resolution(url, output_path)
+                    new_path = output_path if not author_folder else tweak_output_path(output_path,url)
+                    download_highest_resolution(url, new_path)
                 except Exception as e:
                     print(e)
                     return False
                 # messagebox.showinfo("Download Complete", "Audio downloaded successfully!")
     progress_text.configure(text="")
+    progress_bar_label.configure(text="Download progress:")
 
     with open("config.json", "r+") as f:
         json.dump(config,f)
 
 def reset_progress():
-    global start_time
+    global start_time,count,total
     progress_bar["value"] = 0
     window.update_idletasks()
     start_time = datetime.now()
-
+    progress_text.configure(text="")
+    total,count=0,0
 def update_progress(stream, chunk, bytes_remaining):
+    del chunk
     total_size = stream.filesize
     bytes_downloaded = total_size - bytes_remaining
     progress = int((bytes_downloaded / total_size) * 100)
@@ -255,6 +279,7 @@ def update_progress(stream, chunk, bytes_remaining):
     window.update_idletasks()                
     
 def update_progress_display(size,received,remaining):
+    global total,count
     size_MB = round (size/1024/1024,2)
     received_MB = round (received/1024/1024,2)
     remaining_MB = round (remaining/1024/1024,2)
@@ -266,7 +291,8 @@ def update_progress_display(size,received,remaining):
     ETA_string = f"{str(days)+' d' if days!=0 else ''} {str(hours)+' h' if hours!=0  else ('0 h' if days!=0 else '')} {str(minutes)+' m' if minutes!=0  else ('0 m' if hours!=0 else '')} {str(seconds)+' s' if seconds!=0  else ''}"
     complete_percentage = received_MB / size_MB * 100
     #display=f"[Recieved: {received_MB}/{size_MB} MB ({speed})  ETA: {ETA}s]"
-    display=f"Recieved: {received_MB}/{size_MB} MB [{complete_percentage}% | {speed} MB/s | ETA: {ETA_string}"
+    display=f"Recieved: {received_MB}/{size_MB} MB [{speed} MB/s | ETA: {ETA_string}]"
+    progress_bar_label.configure(text=f"Downloading {count}/{total}... {round(complete_percentage,1)}%")
     return display
 
 def convert_seconds(seconds):
@@ -332,7 +358,7 @@ format_radio_frame.pack()
 format_var = tk.IntVar(value=1)
 mp3_radio = ttk.Radiobutton(format_radio_frame, text="MP3", variable=format_var, value=1)
 mp3_radio.grid(row=0, column=0)
-mp4_radio = ttk.Radiobutton(format_radio_frame, text="MP4(Maximum 720p)", variable=format_var, value=2)
+mp4_radio = ttk.Radiobutton(format_radio_frame, text="MP4 (720p)", variable=format_var, value=2)
 mp4_radio.grid(row=1, column=0)
 mp4_highres_radio = ttk.Radiobutton(format_radio_frame, text="Highest Resolution MP4 (Requires local processing)", variable=format_var, value=3)
 mp4_highres_radio.grid(row=2, column=0)
@@ -343,8 +369,12 @@ path_label.pack()
 path_entry = ttk.Entry(window, width=50)
 path_entry.insert(0, config["path"]) 
 path_entry.pack()
+folder_check_box = tk.IntVar(value=0)
+author_folder=ttk.Checkbutton(window, text='Create folder for each channel',variable=folder_check_box, onvalue=1, offvalue=0)
+author_folder.pack()
 path_button = ttk.Button(window, text="Select Directory", command=select_path)
 path_button.pack()
+
 
 # Download Button
 download_button = ttk.Button(window, text="Download", command=on_download)
@@ -353,6 +383,8 @@ download_button.pack()
 # Progress bar
 progress_bar_label=ttk.Label(window, text="Download progress:")
 progress_bar_label.pack()
+total_progress_bar = Progressbar(window, orient=tk.HORIZONTAL, length=300, mode='determinate')
+total_progress_bar.pack()
 progress_bar = Progressbar(window, orient=tk.HORIZONTAL, length=300, mode='determinate')
 progress_bar.pack()
 progress_text = ttk.Label(window, text="")
